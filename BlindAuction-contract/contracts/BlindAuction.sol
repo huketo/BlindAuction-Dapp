@@ -12,17 +12,17 @@ contract BlindAuction {
   enum Phase { Init, Bidding, Reveal, Done }
   Phase public state = Phase.Init;
 
-  address payable seller; // 판매자
-  uint minimumBid; // 최소 입찰가
-  mapping(address => Bid) bids; // 각 입찰자 별 입찰정보
+  address payable public seller; // 판매자
+  uint public minimumBid; // 최소 입찰가
+  mapping(address => Bid) public bids; // 각 입찰자 별 입찰정보
   
   address public highestBidder; // 최고가 입찰자
   uint public highestBid; // 최고가 입찰가
 
   mapping(address => uint) depositReturns; // 낙찰 실패자들 반환보증금
 
-  uint firstBlockNumber; // 매물 등록 시 블록넘버
-  uint latestBlockNumber; // 최신 블록넘버
+  uint public firstBlockNumber; // 매물 등록 시 블록넘버
+  // uint latestBlockNumber; // 최신 블록넘버
 
   // 경매단계 확인
   modifier validPhase(Phase reqPhase) {
@@ -51,9 +51,10 @@ contract BlindAuction {
   }
 
   function changeState(Phase x) public onlySeller {
-    require(x < state, "Unable to return the previous state");
+    require(x > state, "Unable to return the previous state");
     state = x;
   }
+
 
   function bid(bytes32 blindBid) public payable validPhase(Phase.Bidding) {
     bids[msg.sender] = Bid({
