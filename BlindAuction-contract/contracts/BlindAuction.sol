@@ -1,32 +1,44 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0 <0.9.0;
 
+contract BlindAuctionList {
+  BlindAuction[] public auctions;
+
+  function createAuction(string memory _title, string memory _description, uint _minimumBid) public {
+    BlindAuction newAuction = new BlindAuction(payable(msg.sender), _title, _description, _minimumBid);
+    auctions.push(newAuction);
+  }
+
+  function returnAllAuctions() public view returns(BlindAuction[] memory) {
+    return auctions;
+  }
+}
+
 contract BlindAuction {
   
   address payable public seller; // 판매자
+  string public title; // 제목
+  string public description; // 설명
   uint public minimumBid; // 최소 입찰가
   
+  uint public phaseBlockNumber; // 매물 등록 시 블록넘버
+  
+  address public highestBidder; // 최고가 입찰자
+  uint public highestBid; // 최고가 입찰가
   
   mapping(address => bytes32) public blindedBids; // 각 입찰자 별 해시 입찰가
   mapping(address => uint) bids; // 각 입찰자 별 입찰가
-
-  address public highestBidder; // 최고가 입찰자
-  uint public highestBid; // 최고가 입찰가
-
   mapping(address => uint) pendingReturns; // 낙찰 실패자들 반환보증금
 
-  uint public beforeBlockNumber; // Phase변경 전 블록넘버
-  uint public afterBlockNumber; // Phase변경 후 블록넘버
 
   // 경매 상태 정보
-  // Init - 0; Register -1; Prebid - 2; Bidding - 3; Reveal - 4; Done - 5;
-  // Register후 Prebid 단계 바로넘어감, Prebid, Bidding, Reveal, Done 블록넘버로 이행결정.
-  enum Phase { Init, Register, Prebid, Bidding, Reveal, Done }
+  // Init - 0; Prebid - 1; Bidding - 2; Reveal - 3; Done - 4;
+  // costructor에서 Prebid로 넘어감, 이후 block.number에서 따라 넘어감.
+  enum Phase { Init, Prebid, Bidding, Reveal, Done }
   Phase public currentPhase;
 
   // events
   event AuctionInit();
-  event Register();
   event PrebidStarted();
   event BiddingStarted();
   event RevealStarted();
@@ -53,16 +65,38 @@ contract BlindAuction {
     _;
   }
 
-  function changePhase() private onlySeller {
+  // BlindAuctionList에서 createAuction으로 생성했을 때 필요한 정보를 입력
+  constructor(address payable _seller, string memory _title, string memory _description, uint _minimumBid) {
+    seller = _seller;
+    title = _title;
+    description = _description;
+    minimumBid = _minimumBid;
+    phaseBlockNumber = block.number;
+    currentPhase = Phase.Prebid;
+  }
+
+  function getCurrentBlockNumber() public view returns(uint) {
+    return block.number;
+  }
+
+  // Testing
+  uint a;
+  function generateBlockTest() public {
+    a++;
+  }
+
+  function changePhase() public {
     if (currentPhase == Phase.Done) {
       currentPhase = Phase.Init;
     } else {
-      uint nextPhase = uint(currentPhase) + 1;
-      currentPhase = Phase(nextPhase);
+      if (block.number > phaseBlockNumber + 10) {
+        uint nextPhase = uint(currentPhase) + 1;
+        currentPhase = Phase(nextPhase);
+        phaseBlockNumber = block.number;
+      }
     }
 
     if (currentPhase == Phase.Init) emit AuctionInit();
-    if (currentPhase == Phase.Register) emit Register();
     if (currentPhase == Phase.Prebid) emit PrebidStarted();
     if (currentPhase == Phase.Bidding) emit BiddingStarted();
     if (currentPhase == Phase.Reveal) emit RevealStarted();
@@ -132,17 +166,6 @@ contract BlindAuction {
       seller.transfer(winningBid);
     }
     emit AuctionEnded(highestBidder, highestBid);
-    resetAuction();
     changePhase(); // Init로 전환.
-  }
-
-  function resetAuction() internal {
-    seller = payable(address(0));
-    minimumBid = 0;
-
-    highestBidder = address(0);
-
-    beforeBlockNumber = 0;
-    afterBlockNumber = 0;
   }
 }
