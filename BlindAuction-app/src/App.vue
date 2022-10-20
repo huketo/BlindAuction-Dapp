@@ -53,6 +53,7 @@
     <!-- Bidder -->
     <h2 class="font-bold text-xl mb-2">매물목록</h2>
     <div
+      v-if="auctionDataList && auctionList"
       v-for="(auction, key) in auctionList"
       :key="key"
       class="p-5 border border-black flex flex-col gap-10 mb-5"
@@ -69,21 +70,21 @@
         <div class="p-3 flex">
           <div class="flex flex-col gap-1 w-1/2">
             <div>
-              <!-- <p for="product-name">매물이름: {{ auctionDataList[key][0] }}</p> -->
+              <p for="product-name">매물이름: {{ auctionDataList[key][0] }}</p>
             </div>
             <div>
               <p for="product-description">
-                <!-- 설명: {{ auctionDataList[key][1] }} -->
+                설명: {{ auctionDataList[key][1] }}
               </p>
             </div>
             <div class="flex">
               <p for="minimum-price">
-                <!-- 최소입찰금액: {{ auctionDataList[key][2] }} -->
+                최소입찰금액: {{ auctionDataList[key][2] }}
               </p>
               <span class="ml-2">(ETH)</span>
             </div>
             <div>
-              <!-- <p>진행상황: {{ auctionDataList[key][3] }}</p> -->
+              <p>진행상황: {{ auctionDataList[key][3] }}</p>
             </div>
           </div>
         </div>
@@ -103,6 +104,7 @@
                 type="text"
                 placeholder="매물이름을 입력하세요."
                 class="border border-gray-400 focus:border-gray-500 pl-0.5"
+                v-model="prebidPriceList[key]"
               />
               <span class="ml-2">(ETH)</span>
             </div>
@@ -110,6 +112,7 @@
           <div class="w-1/2 relative">
             <button
               class="absolute bottom-0 bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
+              @click="pushPrebid(key, auction)"
             >
               입찰가격등록
             </button>
@@ -131,6 +134,7 @@
                 type="text"
                 placeholder="매물이름을 입력하세요."
                 class="border border-gray-400 focus:border-gray-500 pl-0.5"
+                v-model="bidPriceList[key]"
               />
               <span class="ml-2">(ETH)</span>
             </div>
@@ -138,6 +142,7 @@
           <div class="w-1/2 relative">
             <button
               class="absolute bottom-0 bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
+              @click="pushBid(key, auction)"
             >
               입찰등록
             </button>
@@ -163,25 +168,23 @@ import BlindAuctionList from "./network/BlindAuctionList";
 import { onBeforeMount, ref } from "vue";
 
 const title = ref("");
-const minimumBid = ref(0);
+const minimumBid = ref("0");
 const description = ref("");
 
-const amount = ref(0);
 const auctionList = ref([]);
 const auctionDataList = ref([]);
-let auctionListDev = [];
 
 let isShow = false;
 let isBid = false;
 let isFin = false;
 
-let bidPrice = "";
-const auctionAdress = ref("");
-let bidders = 0;
+const prebidPriceList = ref(["0"]);
+const bidPriceList = ref(["0"]);
+const auctionAdress = ref([""]);
 
-onBeforeMount(() => {
+onBeforeMount(async () => {
   // before mount get auctions
-  BlindAuctionList.methods
+  await BlindAuctionList.methods
     .returnAllAuctions()
     .call()
     .then((auctions) => {
@@ -189,9 +192,17 @@ onBeforeMount(() => {
       auctionList.value = auctions;
     });
   auctionList.value.forEach((address) => {
-    auctionDataList.value.push(
-      BlindAuction(address).methods.returnContents().call()
-    );
+    BlindAuction(address)
+      .methods.returnContents()
+      .call()
+      .then((data) => {
+        auctionDataList.value.push([
+          data[0],
+          data[1],
+          web3.utils.fromWei(data[2], "ether"),
+          data[3],
+        ]);
+      });
   });
 });
 
@@ -218,6 +229,8 @@ const createAuction = () => {
       const index = auctions.length - 1;
       console.log(auctions[index]);
       console.log(auctions);
+      // update auction list
+      auctionList.value = auctions;
       // get contract address of auctions
       auctionAdress.value = auctions[index];
       // set address and get content
@@ -227,10 +240,9 @@ const createAuction = () => {
     })
     .then((lists) => {
       console.log(lists);
-      const auctionLists = lists;
       // wei -> ether
-      auctionLists[2] = web3.utils.fromWei(auctionLists[2], "ether");
-      auctionDataList.value.push(auctionLists);
+      lists[2] = web3.utils.fromWei(lists[2], "ether");
+      auctionDataList.value.push([lists[0], lists[1], lists[2], lists[3]]);
       // auction update page
       amount.value += 1;
     })
@@ -239,7 +251,34 @@ const createAuction = () => {
     });
 };
 
-const handleBidSubmit = () => {};
+const pushPrebid = (index, acutionAddress) => {
+  console.log(prebidPriceList.value[index]);
+  // ether -> wei
+  const prebidPriceWei = web3.utils.toWei(
+    prebidPriceList.value[index],
+    "ether"
+  );
+  // get bider address
+  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
+  console.log(fromAddress);
 
-const handleFinalize = () => {};
+  // set the address
+  const selectedAuction = BlindAuction(acutionAddress);
+  // prebid in contract
+  selectedAuction.methods
+    .prebid(prebidPriceWei)
+    .call({ from: fromAddress })
+    .then(() => {
+      console.log("success");
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+};
+
+const pushBid = (index, auctionAddress) => {
+  console.log(bidPriceList.value[index]);
+};
+
+const handlePhase = () => {};
 </script>
