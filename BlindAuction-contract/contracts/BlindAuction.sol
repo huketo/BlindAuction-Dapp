@@ -168,4 +168,8 @@ contract BlindAuction {
     emit AuctionEnded(highestBidder, highestBid);
     changePhase(); // Init로 전환.
   }
+
+  function returnContents() public view returns (string memory, string memory, uint, Phase) {
+    return (title, description, minimumBid, currentPhase);
+  }
 }
