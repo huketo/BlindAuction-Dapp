@@ -4,11 +4,20 @@
     <!-- Seller -->
     <h2 class="font-bold text-xl mb-2">매물등록</h2>
     <div class="p-5 border border-black flex flex-col gap-10 mb-10">
-      <div
-        class="bg-gray-400 inline-block w-24 text-center border border-black text-white"
-      >
-        매물
+      <div class="flex justify-between">
+        <div
+          class="bg-gray-400 inline-block w-24 text-center border border-black text-white"
+        >
+          매물
+        </div>
+        <button
+          class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
+          @click="generateBlock"
+        >
+          블록 생성
+        </button>
       </div>
+
       <div class="p-3 flex">
         <div class="flex flex-col gap-1 w-1/2">
           <div>
@@ -53,7 +62,6 @@
     <!-- Bidder -->
     <h2 class="font-bold text-xl mb-2">매물목록</h2>
     <div
-      v-if="auctionDataList && auctionList"
       v-for="(auction, key) in auctionList"
       :key="key"
       class="p-5 border border-black flex flex-col gap-10 mb-5"
@@ -66,6 +74,26 @@
             경매 {{ key + 1 }}
           </div>
           <span class="ml-3">{{ auction }}</span>
+          <div class="float-right">
+            <button
+              class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
+              @click="getCurrentBlockNumber(auction)"
+            >
+              현재 블록
+            </button>
+            <button
+              class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
+              @click="getPhaseBlockNumber(auction)"
+            >
+              페이즈
+            </button>
+            <button
+              class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
+              @click="getMyBid(auction)"
+            >
+              나의 입찰가
+            </button>
+          </div>
         </div>
         <div class="p-3 flex">
           <div class="flex flex-col gap-1 w-1/2">
@@ -151,9 +179,27 @@
       </div>
 
       <div>
+        <div class="flex justify-between">
+          <div
+            class="bg-gray-400 inline-block w-24 text-center border border-black text-white mb-2"
+          >
+            공표
+          </div>
+          <button
+            class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
+            @click="pushReveal(auction)"
+          >
+            입찰 확인
+          </button>
+        </div>
         <div class="mb-12">
-          <span class="mr-24">입찰자: </span>
-          <span>입찰금액: </span>
+          <span class="mr-24">입찰자: {{ bidderAddress }}</span>
+          <label for="reveal">입찰금액: </label>
+          <input
+            type="text"
+            class="border border-gray-400 focus:border-gray-500 pl-0.5"
+            v-model="revealCheckList[key]"
+          />
         </div>
         <div>낙찰자:</div>
       </div>
@@ -178,11 +224,15 @@ let isShow = false;
 let isBid = false;
 let isFin = false;
 
-const prebidPriceList = ref(["0"]);
-const bidPriceList = ref(["0"]);
+const prebidPriceList = ref([]);
+const bidPriceList = ref([]);
+const revealCheckList = ref([]);
 const auctionAdress = ref([""]);
 
+const bidderAddress = ref("");
+
 onBeforeMount(async () => {
+  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
   // before mount get auctions
   await BlindAuctionList.methods
     .returnAllAuctions()
@@ -192,6 +242,9 @@ onBeforeMount(async () => {
       auctionList.value = auctions;
     });
   auctionList.value.forEach((address) => {
+    prebidPriceList.value.push("0");
+    bidPriceList.value.push("0");
+    revealCheckList.value.push("0");
     BlindAuction(address)
       .methods.returnContents()
       .call()
@@ -202,6 +255,14 @@ onBeforeMount(async () => {
           web3.utils.fromWei(data[2], "ether"),
           data[3],
         ]);
+      });
+    BlindAuction(address)
+      .methods.blindedBids(fromAddress)
+      .call()
+      .then((blinedBid) => {
+        if (blinedBid != 0) {
+          bidderAddress.value = fromAddress;
+        }
       });
   });
 });
@@ -243,15 +304,13 @@ const createAuction = () => {
       // wei -> ether
       lists[2] = web3.utils.fromWei(lists[2], "ether");
       auctionDataList.value.push([lists[0], lists[1], lists[2], lists[3]]);
-      // auction update page
-      amount.value += 1;
     })
     .catch((err) => {
       console.log(err);
     });
 };
 
-const pushPrebid = (index, acutionAddress) => {
+const pushPrebid = async (index, auctionAddress) => {
   console.log(prebidPriceList.value[index]);
   // ether -> wei
   const prebidPriceWei = web3.utils.toWei(
@@ -263,22 +322,125 @@ const pushPrebid = (index, acutionAddress) => {
   console.log(fromAddress);
 
   // set the address
-  const selectedAuction = BlindAuction(acutionAddress);
+  const selectedAuction = BlindAuction(auctionAddress);
   // prebid in contract
-  selectedAuction.methods
+  await selectedAuction.methods
     .prebid(prebidPriceWei)
-    .call({ from: fromAddress })
+    .send({ from: fromAddress })
     .then(() => {
-      console.log("success");
+      console.log("prebid success");
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+  await selectedAuction.methods
+    .returnContents()
+    .call()
+    .then((data) => {
+      auctionDataList.value.push([
+        data[0],
+        data[1],
+        web3.utils.fromWei(data[2], "ether"),
+        data[3],
+      ]);
+    });
+};
+
+const pushBid = async (index, auctionAddress) => {
+  console.log(bidPriceList.value[index]);
+  // ether -> wei
+  const bidPriceWei = web3.utils.toWei(bidPriceList.value[index], "ether");
+  // get bider address
+  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
+  console.log(fromAddress);
+
+  // set the address
+  const selectedAuction = BlindAuction(auctionAddress);
+  // bid in contract
+  await selectedAuction.methods
+    .bid()
+    .send({ from: fromAddress, value: bidPriceWei })
+    .then(() => {
+      console.log("bid success");
+      bidderAddress.value = fromAddress;
+    })
+    .catch((err) => {
+      console.log(err);
+    });
+  await selectedAuction.methods
+    .returnContents()
+    .call()
+    .then((data) => {
+      auctionDataList.value.push([
+        data[0],
+        data[1],
+        web3.utils.fromWei(data[2], "ether"),
+        data[3],
+      ]);
+    });
+};
+
+const generateBlock = () => {
+  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
+  BlindAuctionList.methods
+    .generateBlockTest()
+    .send({ from: fromAddress })
+    .then(() => {
+      console.log("block generated");
     })
     .catch((err) => {
       console.log(err);
     });
 };
 
-const pushBid = (index, auctionAddress) => {
-  console.log(bidPriceList.value[index]);
+const getCurrentBlockNumber = (auctionAddress) => {
+  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
+  const selectedAuction = BlindAuction(auctionAddress);
+  selectedAuction.methods
+    .getCurrentBlockNumber()
+    .call({ from: fromAddress })
+    .then((blockNum) => {
+      console.log(blockNum);
+    })
+    .catch((err) => {
+      console.log(err);
+    });
 };
 
-const handlePhase = () => {};
+const getPhaseBlockNumber = (auctionAddress) => {
+  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
+  const selectedAuction = BlindAuction(auctionAddress);
+  selectedAuction.methods
+    .phaseBlockNumber()
+    .call({ from: fromAddress })
+    .then((phase) => console.log(phase))
+    .catch((err) => console.log(err));
+};
+
+const getMyBid = (auctionAddress) => {
+  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
+  const selectedAuction = BlindAuction(auctionAddress);
+  selectedAuction.methods
+    .getMyBid()
+    .call({ from: fromAddress })
+    .then((bid) => console.log(web3.utils.fromWei(bid, "ether")))
+    .catch((err) => console.log(err));
+};
+
+const pushReveal = (auctionAddress) => {
+  // ether -> wei
+  const bidPriceWei = web3.utils.toWei(revealCheckList.value[index], "ether");
+  // get bider address
+  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
+  console.log(fromAddress);
+
+  // set the address
+  const selectedAuction = BlindAuction(auctionAddress);
+  // reveal in contract
+  selectedAuction.methods
+    .reveal(bidPriceWei)
+    .send({ from: fromAddress })
+    .then(() => console.log("reveal success"))
+    .catch((err) => console.log(err));
+};
 </script>

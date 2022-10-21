@@ -1,6 +1,6 @@
 import web3 from "./web3";
 
-const address = "0xd624BA22f88f338488B69e60C5cb501C095B4925";
+const address = "0x1935EA233B3d64aDb56B87Af7b3C43A78592e34b";
 const ABI = [
   {
     inputs: [
@@ -58,6 +58,13 @@ const ABI = [
     stateMutability: "view",
     type: "function",
     constant: true,
+  },
+  {
+    inputs: [],
+    name: "generateBlockTest",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
 ];
 

@@ -49,12 +49,6 @@ const ABI = [
   {
     anonymous: false,
     inputs: [],
-    name: "AuctionInit",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [],
     name: "BidFail",
     type: "event",
   },
@@ -67,19 +61,19 @@ const ABI = [
   {
     anonymous: false,
     inputs: [],
-    name: "BiddingStarted",
+    name: "Bidding",
     type: "event",
   },
   {
     anonymous: false,
     inputs: [],
-    name: "PrebidStarted",
+    name: "Prebidding",
     type: "event",
   },
   {
     anonymous: false,
     inputs: [],
-    name: "RevealStarted",
+    name: "Revealing",
     type: "event",
   },
   {
@@ -168,7 +162,33 @@ const ABI = [
   },
   {
     inputs: [],
+    name: "payedBidderCount",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "phaseBlockNumber",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "preBidderCount",
     outputs: [
       {
         internalType: "uint256",
@@ -220,13 +240,6 @@ const ABI = [
   },
   {
     inputs: [],
-    name: "generateBlockTest",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
     name: "changePhase",
     outputs: [],
     stateMutability: "nonpayable",
@@ -274,13 +287,7 @@ const ABI = [
       },
     ],
     name: "reveal",
-    outputs: [
-      {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
-    ],
+    outputs: [],
     stateMutability: "nonpayable",
     type: "function",
   },
@@ -288,14 +295,14 @@ const ABI = [
     inputs: [],
     name: "withdraw",
     outputs: [],
-    stateMutability: "payable",
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
     inputs: [],
     name: "auctionEnd",
     outputs: [],
-    stateMutability: "payable",
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
