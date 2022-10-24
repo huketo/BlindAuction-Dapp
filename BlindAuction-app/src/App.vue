@@ -71,25 +71,19 @@
           <div
             class="bg-gray-400 inline-block w-24 text-center border border-black text-white"
           >
-            경매 {{ key + 1 }}
+            경매 {{ auction.auctionId }}
           </div>
-          <span class="ml-3">{{ auction }}</span>
+          <span class="ml-3">{{ auction.seller }}</span>
           <div class="float-right">
             <button
-              class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
-              @click="getCurrentBlockNumber(auction)"
+              class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600 mr-2"
+              @click="generateBlock"
             >
-              현재 블록
+              블록 생성
             </button>
             <button
               class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
-              @click="getPhaseBlockNumber(auction)"
-            >
-              페이즈
-            </button>
-            <button
-              class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
-              @click="getMyBid(auction)"
+              @click="getMyBid(auction.auctionId)"
             >
               나의 입찰가
             </button>
@@ -98,21 +92,19 @@
         <div class="p-3 flex">
           <div class="flex flex-col gap-1 w-1/2">
             <div>
-              <p for="product-name">매물이름: {{ auctionDataList[key][0] }}</p>
+              <p for="product-name">매물이름: {{ auction.title }}</p>
             </div>
             <div>
-              <p for="product-description">
-                설명: {{ auctionDataList[key][1] }}
-              </p>
+              <p for="product-description">설명: {{ auction.description }}</p>
             </div>
             <div class="flex">
               <p for="minimum-price">
-                최소입찰금액: {{ auctionDataList[key][2] }}
+                최소입찰금액: {{ auction.minimumPrice }}
               </p>
               <span class="ml-2">(ETH)</span>
             </div>
             <div>
-              <p>진행상황: {{ auctionDataList[key][3] }}</p>
+              <p>진행상황: {{ auction.currentPhase }}</p>
             </div>
           </div>
         </div>
@@ -140,7 +132,7 @@
           <div class="w-1/2 relative">
             <button
               class="absolute bottom-0 bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
-              @click="pushPrebid(key, auction)"
+              @click="pushPrebid(auction.auctionId)"
             >
               입찰가격등록
             </button>
@@ -170,7 +162,7 @@
           <div class="w-1/2 relative">
             <button
               class="absolute bottom-0 bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
-              @click="pushBid(key, auction)"
+              @click="pushBid(auction.auctionId)"
             >
               입찰등록
             </button>
@@ -187,21 +179,30 @@
           </div>
           <button
             class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
-            @click="pushReveal(auction)"
+            @click="pushReveal(auction.auctionId)"
           >
             입찰 확인
           </button>
         </div>
         <div class="mb-12">
-          <span class="mr-24">입찰자: {{ bidderAddress }}</span>
+          <span class="mr-24">입찰자: {{ MyAddress }}</span>
           <label for="reveal">입찰금액: </label>
           <input
             type="text"
             class="border border-gray-400 focus:border-gray-500 pl-0.5"
-            v-model="revealCheckList[key]"
+            v-model="revealPriceList[key]"
           />
         </div>
-        <div>낙찰자:</div>
+        <div v-if="isAuctionDone" class="flex justify-between">
+          <div>낙찰자: {{ auction.highestBidder }}</div>
+          <button
+            v-if="auction.seller == MyAddress"
+            class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
+            @click="pushAuctionEnd(auction.auctionId)"
+          >
+            정산
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -210,7 +211,6 @@
 <script setup>
 import web3 from "./network/web3";
 import BlindAuction from "./network/BlindAuction";
-import BlindAuctionList from "./network/BlindAuctionList";
 import { onBeforeMount, ref } from "vue";
 
 const title = ref("");
@@ -218,53 +218,82 @@ const minimumBid = ref("0");
 const description = ref("");
 
 const auctionList = ref([]);
-const auctionDataList = ref([]);
-
-let isShow = false;
-let isBid = false;
-let isFin = false;
 
 const prebidPriceList = ref([]);
 const bidPriceList = ref([]);
-const revealCheckList = ref([]);
-const auctionAdress = ref([""]);
+const revealPriceList = ref([]);
 
-const bidderAddress = ref("");
+const isAuctionDone = ref(false);
+const MyAddress = ref("");
 
-onBeforeMount(async () => {
+setInterval(() => {
   const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
-  // before mount get auctions
-  await BlindAuctionList.methods
-    .returnAllAuctions()
+  const toChecksumAddress = web3.utils.toChecksumAddress(fromAddress);
+  MyAddress.value = toChecksumAddress;
+}, 1000);
+
+const getAuctionData = (index) => {
+  BlindAuction.methods
+    .auctions(index)
     .call()
-    .then((auctions) => {
-      console.log(auctions);
-      auctionList.value = auctions;
+    .then((auction) => {
+      // wei -> ether
+      const toEtherMinimum = web3.utils.fromWei(auction.minimumPrice, "ether");
+      const toEtherHightestBid = web3.utils.fromWei(
+        auction.highestBid,
+        "ether"
+      );
+      // get auction data
+      const auctionData = {
+        auctionId: auction.auctionId,
+        seller: auction.seller,
+        title: auction.title,
+        description: auction.description,
+        minimumPrice: toEtherMinimum,
+        prebidderCount: auction.prebidderCount,
+        highestBidder: auction.highestBidder,
+        highestBid: toEtherHightestBid,
+        currentPhase: auction.currentPhase,
+        phaseBlockNumber: auction.phaseBlockNumber,
+      };
+      BlindAuction.methods
+        .getAuctionBidders(index)
+        .call()
+        .then((bidders) => {
+          console.log(bidders);
+          auctionData["bidders"] = bidders;
+          console.log(auctionData);
+        });
+      // push auction data
+      auctionList.value[index] = auctionData;
+      // phase done check
+      if (auction.currentPhase == 3) {
+        isAuctionDone.value = true;
+      }
     });
-  auctionList.value.forEach((address) => {
-    prebidPriceList.value.push("0");
-    bidPriceList.value.push("0");
-    revealCheckList.value.push("0");
-    BlindAuction(address)
-      .methods.returnContents()
-      .call()
-      .then((data) => {
-        auctionDataList.value.push([
-          data[0],
-          data[1],
-          web3.utils.fromWei(data[2], "ether"),
-          data[3],
-        ]);
-      });
-    BlindAuction(address)
-      .methods.blindedBids(fromAddress)
-      .call()
-      .then((blinedBid) => {
-        if (blinedBid != 0) {
-          bidderAddress.value = fromAddress;
+};
+
+onBeforeMount(() => {
+  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
+  const toChecksumAddress = web3.utils.toChecksumAddress(fromAddress);
+  MyAddress.value = toChecksumAddress;
+  // before mount get auctions
+  console.log(BlindAuction.methods);
+  BlindAuction.methods
+    .numAuctions()
+    .call()
+    .then((auctionLength) => {
+      console.log("auctions counts:", auctionLength);
+      if (auctionLength > 0) {
+        for (let i = 0; i < auctionLength; i++) {
+          getAuctionData(i);
+          prebidPriceList.value.push("0");
+          bidPriceList.value.push("0");
+          revealPriceList.value.push("0");
         }
-      });
-  });
+      }
+    })
+    .catch((err) => console.log(err));
 });
 
 const createAuction = () => {
@@ -274,173 +303,161 @@ const createAuction = () => {
       // ether -> wei
       const _minimumBid = web3.utils.toWei(minimumBid.value, "ether");
       // create acution
-      return BlindAuctionList.methods
-        .createAuction(title.value, description.value, _minimumBid)
+      console.log(accounts[0]);
+      return BlindAuction.methods
+        .createAuction(accounts[0], title.value, description.value, _minimumBid)
         .send({ from: accounts[0] });
     })
-    .then(() => {
+    .then((auctionId) => {
       // initialize create auction form
       title.value = "";
       description.value = "";
       minimumBid.value = 0;
-      // get auctions
-      return BlindAuctionList.methods.returnAllAuctions().call();
+
+      prebidPriceList.value.push("0");
+      bidPriceList.value.push("0");
+      revealPriceList.value.push("0");
+
+      // return auction
+      return BlindAuction.methods.auctions(auctionId).call();
     })
-    .then((auctions) => {
-      const index = auctions.length - 1;
-      console.log(auctions[index]);
-      console.log(auctions);
-      // update auction list
-      auctionList.value = auctions;
-      // get contract address of auctions
-      auctionAdress.value = auctions[index];
-      // set address and get content
-      const auctionInstance = BlindAuction(auctions[index]);
-      console.log(auctionInstance);
-      return auctionInstance.methods.returnContents().call();
-    })
-    .then((lists) => {
-      console.log(lists);
-      // wei -> ether
-      lists[2] = web3.utils.fromWei(lists[2], "ether");
-      auctionDataList.value.push([lists[0], lists[1], lists[2], lists[3]]);
+    .then((auction) => {
+      console.log(auction);
+      const toEtherMinimum = web3.utils.fromWei(auction.minimumPrice, "ether");
+      const toEtherHightestBid = web3.utils.fromWei(
+        auction.highestBid,
+        "ether"
+      );
+      const auctionData = {
+        auctionId: auction.auctionId,
+        seller: auction.seller,
+        title: auction.title,
+        description: auction.description,
+        minimumPrice: toEtherMinimum,
+        prebidderCount: auction.prebidderCount,
+        highestBidder: auction.highestBidder,
+        highestBid: toEtherHightestBid,
+        currentPhase: auction.currentPhase,
+        phaseBlockNumber: auction.phaseBlockNumber,
+      };
+      BlindAuction.methods
+        .getAuctionBidders(auction.auctionId)
+        .call()
+        .then((bidders) => {
+          console.log(bidders);
+          auctionData["bidders"] = bidders;
+          console.log(auctionData);
+        });
+      auctionList.value.push(auctionData);
     })
     .catch((err) => {
       console.log(err);
     });
 };
 
-const pushPrebid = async (index, auctionAddress) => {
-  console.log(prebidPriceList.value[index]);
+const pushPrebid = async (auctionId) => {
+  console.log(prebidPriceList.value[auctionId]);
   // ether -> wei
   const prebidPriceWei = web3.utils.toWei(
-    prebidPriceList.value[index],
+    prebidPriceList.value[auctionId],
     "ether"
   );
   // get bider address
   const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
   console.log(fromAddress);
-
-  // set the address
-  const selectedAuction = BlindAuction(auctionAddress);
   // prebid in contract
-  await selectedAuction.methods
-    .prebid(prebidPriceWei)
-    .send({ from: fromAddress })
+  await BlindAuction.methods
+    .prebid(auctionId, prebidPriceWei)
+    .send({ from: fromAddress, gasPrice: 20000000000, gas: "6721975" })
     .then(() => {
       console.log("prebid success");
     })
     .catch((err) => {
       console.log(err);
     });
-  await selectedAuction.methods
-    .returnContents()
-    .call()
-    .then((data) => {
-      auctionDataList.value.push([
-        data[0],
-        data[1],
-        web3.utils.fromWei(data[2], "ether"),
-        data[3],
-      ]);
-    });
+  getAuctionData(auctionId);
 };
 
-const pushBid = async (index, auctionAddress) => {
-  console.log(bidPriceList.value[index]);
+const getMyBid = (auctionId) => {
+  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
+  BlindAuction.methods
+    .getMyBid(auctionId)
+    .call({ from: fromAddress })
+    .then((bid) =>
+      console.log("My bid:", web3.utils.fromWei(bid, "ether") + " ether")
+    )
+    .catch((err) => console.log(err));
+};
+
+const pushBid = async (auctionId) => {
+  console.log(bidPriceList.value[auctionId]);
   // ether -> wei
-  const bidPriceWei = web3.utils.toWei(bidPriceList.value[index], "ether");
+  const bidPriceWei = web3.utils.toWei(bidPriceList.value[auctionId], "ether");
   // get bider address
   const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
   console.log(fromAddress);
-
-  // set the address
-  const selectedAuction = BlindAuction(auctionAddress);
   // bid in contract
-  await selectedAuction.methods
-    .bid()
-    .send({ from: fromAddress, value: bidPriceWei })
+  await BlindAuction.methods
+    .bid(auctionId)
+    .send({
+      from: fromAddress,
+      gasPrice: 20000000000,
+      gas: "6721975",
+      value: bidPriceWei,
+    })
     .then(() => {
       console.log("bid success");
-      bidderAddress.value = fromAddress;
     })
     .catch((err) => {
       console.log(err);
     });
-  await selectedAuction.methods
-    .returnContents()
+  getAuctionData(auctionId);
+};
+
+const pushReveal = (auctionId) => {
+  // ether -> wei
+  const bidPriceWei = web3.utils.toWei(
+    revealPriceList.value[auctionId],
+    "ether"
+  );
+  // get bidder address
+  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
+  console.log(fromAddress);
+  // reveal in contract
+  BlindAuction.methods
+    .reveal(auctionId, bidPriceWei)
+    .send({ from: fromAddress, gasPrice: 20000000000, gas: "6721975" })
+    .then(() => console.log("reveal success"))
+    .catch((err) => console.log(err));
+  getAuctionData(auctionId);
+};
+
+const pushAuctionEnd = (auctionId) => {
+  // get bidder address
+  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
+  const toChecksumAddress = web3.utils.toChecksumAddress(fromAddress);
+  BlindAuction.methods
+    .auctions(auctionId)
     .call()
-    .then((data) => {
-      auctionDataList.value.push([
-        data[0],
-        data[1],
-        web3.utils.fromWei(data[2], "ether"),
-        data[3],
-      ]);
-    });
+    .then((auction) => console.log(auction.currentPhase));
+  // check seller
+  if (auctionList.value[auctionId].seller == toChecksumAddress) {
+    // auction end
+    BlindAuction.methods
+      .auctionEnd(auctionId)
+      .send({ from: toChecksumAddress, gasPrice: 20000000000, gas: "6721975" })
+      .then(() => console.log("auction end"))
+      .catch((err) => console.log(err));
+    getAuctionData(auctionId);
+  }
 };
 
 const generateBlock = () => {
   const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
-  BlindAuctionList.methods
-    .generateBlockTest()
-    .send({ from: fromAddress })
-    .then(() => {
-      console.log("block generated");
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-};
-
-const getCurrentBlockNumber = (auctionAddress) => {
-  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
-  const selectedAuction = BlindAuction(auctionAddress);
-  selectedAuction.methods
-    .getCurrentBlockNumber()
-    .call({ from: fromAddress })
-    .then((blockNum) => {
-      console.log(blockNum);
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-};
-
-const getPhaseBlockNumber = (auctionAddress) => {
-  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
-  const selectedAuction = BlindAuction(auctionAddress);
-  selectedAuction.methods
-    .phaseBlockNumber()
-    .call({ from: fromAddress })
-    .then((phase) => console.log(phase))
-    .catch((err) => console.log(err));
-};
-
-const getMyBid = (auctionAddress) => {
-  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
-  const selectedAuction = BlindAuction(auctionAddress);
-  selectedAuction.methods
-    .getMyBid()
-    .call({ from: fromAddress })
-    .then((bid) => console.log(web3.utils.fromWei(bid, "ether")))
-    .catch((err) => console.log(err));
-};
-
-const pushReveal = (auctionAddress) => {
-  // ether -> wei
-  const bidPriceWei = web3.utils.toWei(revealCheckList.value[index], "ether");
-  // get bider address
-  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
-  console.log(fromAddress);
-
-  // set the address
-  const selectedAuction = BlindAuction(auctionAddress);
-  // reveal in contract
-  selectedAuction.methods
-    .reveal(bidPriceWei)
-    .send({ from: fromAddress })
-    .then(() => console.log("reveal success"))
+  BlindAuction.methods
+    .generateBlock()
+    .send({ from: fromAddress, gasPrice: 20000000000, gas: "6721975" })
+    .then(() => console.log("block generate"))
     .catch((err) => console.log(err));
 };
 </script>

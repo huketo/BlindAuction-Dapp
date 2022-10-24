@@ -1,6 +1,334 @@
 import web3 from "./web3";
 
+const address = "0x4841e54B2009E93E2308F2fD67Ef542Ab6ACc893";
 const ABI = [
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "address",
+        name: "_bidder",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_value",
+        type: "uint256",
+      },
+    ],
+    name: "AuctionBid",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "address",
+        name: "_seller",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "string",
+        name: "_title",
+        type: "string",
+      },
+      {
+        indexed: false,
+        internalType: "string",
+        name: "_description",
+        type: "string",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_minimumPrice",
+        type: "uint256",
+      },
+    ],
+    name: "AuctionCreated",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "address",
+        name: "_highestBidder",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_highestBid",
+        type: "uint256",
+      },
+    ],
+    name: "AuctionEnded",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "address",
+        name: "_bidder",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_value",
+        type: "uint256",
+      },
+    ],
+    name: "AuctionPrebid",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "address",
+        name: "_bidder",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_value",
+        type: "uint256",
+      },
+    ],
+    name: "AuctionReveal",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "address",
+        name: "_bidder",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_value",
+        type: "uint256",
+      },
+    ],
+    name: "BidFail",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "address",
+        name: "_bidder",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_value",
+        type: "uint256",
+      },
+    ],
+    name: "NowHighestBidder",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "address",
+        name: "_bidder",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "_value",
+        type: "uint256",
+      },
+    ],
+    name: "Withdraw",
+    type: "event",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    name: "auctions",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "auctionId",
+        type: "uint256",
+      },
+      {
+        internalType: "address payable",
+        name: "seller",
+        type: "address",
+      },
+      {
+        internalType: "string",
+        name: "title",
+        type: "string",
+      },
+      {
+        internalType: "string",
+        name: "description",
+        type: "string",
+      },
+      {
+        internalType: "uint256",
+        name: "minimumPrice",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "prebidderCount",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "bidderCount",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "revealCount",
+        type: "uint256",
+      },
+      {
+        internalType: "address",
+        name: "highestBidder",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "highestBid",
+        type: "uint256",
+      },
+      {
+        internalType: "enum BlindAuction.Phase",
+        name: "currentPhase",
+        type: "uint8",
+      },
+      {
+        internalType: "uint256",
+        name: "phaseBlockNumber",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+    constant: true,
+  },
+  {
+    inputs: [],
+    name: "numAuctions",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+    constant: true,
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+    ],
+    name: "getAuctionBidders",
+    outputs: [
+      {
+        components: [
+          {
+            internalType: "address payable",
+            name: "addr",
+            type: "address",
+          },
+          {
+            internalType: "bytes32",
+            name: "blindedBid",
+            type: "bytes32",
+          },
+        ],
+        internalType: "struct BlindAuction.Bidder[]",
+        name: "",
+        type: "tuple[]",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+    constant: true,
+  },
   {
     inputs: [
       {
@@ -20,210 +348,122 @@ const ABI = [
       },
       {
         internalType: "uint256",
-        name: "_minimumBid",
+        name: "_minimumPrice",
+        type: "uint256",
+      },
+    ],
+    name: "createAuction",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
         type: "uint256",
       },
     ],
     stateMutability: "nonpayable",
-    type: "constructor",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "address",
-        name: "_winner",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "_highestBid",
-        type: "uint256",
-      },
-    ],
-    name: "AuctionEnded",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [],
-    name: "BidFail",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [],
-    name: "BidSuccess",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [],
-    name: "Bidding",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [],
-    name: "Prebidding",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [],
-    name: "Revealing",
-    type: "event",
+    type: "function",
   },
   {
     inputs: [
       {
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "_value",
+        type: "uint256",
+      },
+    ],
+    name: "prebid",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+    ],
+    name: "getMyBid",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+    constant: true,
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+    ],
+    name: "bid",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+    payable: true,
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "_value",
+        type: "uint256",
+      },
+    ],
+    name: "reveal",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+      {
         internalType: "address",
-        name: "",
+        name: "_bidder",
         type: "address",
       },
     ],
-    name: "blindedBids",
-    outputs: [
-      {
-        internalType: "bytes32",
-        name: "",
-        type: "bytes32",
-      },
-    ],
-    stateMutability: "view",
+    name: "withdraw",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
-    inputs: [],
-    name: "currentPhase",
-    outputs: [
-      {
-        internalType: "enum BlindAuction.Phase",
-        name: "",
-        type: "uint8",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "description",
-    outputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "highestBid",
-    outputs: [
+    inputs: [
       {
         internalType: "uint256",
-        name: "",
+        name: "_auctionId",
         type: "uint256",
       },
     ],
-    stateMutability: "view",
+    name: "auctionEnd",
+    outputs: [],
+    stateMutability: "payable",
     type: "function",
-  },
-  {
-    inputs: [],
-    name: "highestBidder",
-    outputs: [
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "minimumBid",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "payedBidderCount",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "phaseBlockNumber",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "preBidderCount",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "seller",
-    outputs: [
-      {
-        internalType: "address payable",
-        name: "",
-        type: "address",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "title",
-    outputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    payable: true,
   },
   {
     inputs: [],
@@ -237,105 +477,17 @@ const ABI = [
     ],
     stateMutability: "view",
     type: "function",
+    constant: true,
   },
   {
     inputs: [],
-    name: "changePhase",
+    name: "generateBlock",
     outputs: [],
     stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
-    ],
-    name: "prebid",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getMyBid",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "bid",
-    outputs: [],
-    stateMutability: "payable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "value",
-        type: "uint256",
-      },
-    ],
-    name: "reveal",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "withdraw",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "auctionEnd",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "returnContents",
-    outputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-      {
-        internalType: "enum BlindAuction.Phase",
-        name: "",
-        type: "uint8",
-      },
-    ],
-    stateMutability: "view",
     type: "function",
   },
 ];
 
-export default (address) => {
-  const instance = new web3.eth.Contract(ABI, address);
-  return instance;
-};
+const instance = new web3.eth.Contract(ABI, address);
+
+export default instance;
