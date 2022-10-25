@@ -1,6 +1,6 @@
 import web3 from "./web3";
 
-const address = "0x4841e54B2009E93E2308F2fD67Ef542Ab6ACc893";
+const address = "0x26182DC318e480851306bFbF49BBb936618Bd5E1";
 const ABI = [
   {
     anonymous: false,
@@ -29,32 +29,7 @@ const ABI = [
   },
   {
     anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "address",
-        name: "_seller",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "string",
-        name: "_title",
-        type: "string",
-      },
-      {
-        indexed: false,
-        internalType: "string",
-        name: "_description",
-        type: "string",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "_minimumPrice",
-        type: "uint256",
-      },
-    ],
+    inputs: [],
     name: "AuctionCreated",
     type: "event",
   },
@@ -249,16 +224,6 @@ const ABI = [
         type: "uint256",
       },
       {
-        internalType: "uint256",
-        name: "bidderCount",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "revealCount",
-        type: "uint256",
-      },
-      {
         internalType: "address",
         name: "highestBidder",
         type: "address",
@@ -277,6 +242,11 @@ const ABI = [
         internalType: "uint256",
         name: "phaseBlockNumber",
         type: "uint256",
+      },
+      {
+        internalType: "bool",
+        name: "isAuctionEnd",
+        type: "bool",
       },
     ],
     stateMutability: "view",
@@ -321,6 +291,38 @@ const ABI = [
           },
         ],
         internalType: "struct BlindAuction.Bidder[]",
+        name: "",
+        type: "tuple[]",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+    constant: true,
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "_auctionId",
+        type: "uint256",
+      },
+    ],
+    name: "getAuctionCheckedBidders",
+    outputs: [
+      {
+        components: [
+          {
+            internalType: "address payable",
+            name: "addr",
+            type: "address",
+          },
+          {
+            internalType: "uint256",
+            name: "bid",
+            type: "uint256",
+          },
+        ],
+        internalType: "struct BlindAuction.CheckedBidder[]",
         name: "",
         type: "tuple[]",
       },
@@ -440,11 +442,6 @@ const ABI = [
         name: "_auctionId",
         type: "uint256",
       },
-      {
-        internalType: "address",
-        name: "_bidder",
-        type: "address",
-      },
     ],
     name: "withdraw",
     outputs: [],
@@ -461,9 +458,8 @@ const ABI = [
     ],
     name: "auctionEnd",
     outputs: [],
-    stateMutability: "payable",
+    stateMutability: "nonpayable",
     type: "function",
-    payable: true,
   },
   {
     inputs: [],

@@ -8,6 +8,11 @@ contract BlindAuction {
     bytes32 blindedBid;                                     // 해시된 입찰가
   }
 
+  struct CheckedBidder {
+    address payable addr;                                   // 확인된 입찰자
+    uint bid;                                               // 확인된 입찰가
+  }
+
   mapping(address => mapping(uint => uint)) bids;           // 입찰자->경매번호->입찰가
   mapping(address => mapping(uint => uint)) biddersNumber;  // 입찰자->경매번호->입찰자번호
 
@@ -16,18 +21,17 @@ contract BlindAuction {
   enum Phase { Prebid, Bidding, Reveal, Done }
 
   struct Auction {
-    uint auctionId;               // 경매 번호
-    address payable seller;       // 판매자
-    string title;                 // 제목
-    string description;           // 설명
-    uint minimumPrice;            // 최소 입찰가
+    uint auctionId;                 // 경매 번호
+    address payable seller;         // 판매자
+    string title;                   // 제목
+    string description;             // 설명
+    uint minimumPrice;              // 최소 입찰가
 
-    Bidder[] bidders;             // 입찰자들
-    uint prebidderCount;          // 예비입찰자 수
-    uint bidderCount;             // 입찰자 수
-    uint revealCount;             // 공표확인 수
-    address highestBidder;        // 최고가 입찰자
-    uint highestBid;              // 최고가 입찰가
+    Bidder[] bidders;               // 입찰자들
+    CheckedBidder[] checkedBidders; // 확인된 입찰자들
+    uint prebidderCount;            // 예비입찰자 수
+    address highestBidder;          // 최고가 입찰자
+    uint highestBid;                // 최고가 입찰가
 
     Phase currentPhase;           // 경매 단계(enum)
     uint phaseBlockNumber;        // 경매단계 블록넘버
@@ -38,17 +42,18 @@ contract BlindAuction {
   Auction[] public auctions;
 
   // get auction bidders
-  function getAuctionBidders(uint _auctionId) external view returns(Bidder [] memory) {
+  function getAuctionBidders(uint _auctionId) external view returns (Bidder [] memory) {
     Auction memory auction = auctions[_auctionId];
     return auction.bidders;
   }
 
-  event AuctionCreated(
-    address _seller,
-    string _title,
-    string _description,
-    uint _minimumPrice
-  );
+  // get auction checked bidders
+  function getAuctionCheckedBidders(uint _auctionId) external view returns (CheckedBidder [] memory) {
+    Auction memory auction = auctions[_auctionId];
+    return auction.checkedBidders;
+  }
+
+  event AuctionCreated();
 
   // 경매 생성
   function createAuction(
@@ -70,12 +75,7 @@ contract BlindAuction {
     // increase auction count
     numAuctions++;
     // event
-    emit AuctionCreated(
-      _seller,
-      _title,
-      _description,
-      _minimumPrice
-    );
+    emit AuctionCreated();
     // return auction id
     return auction.auctionId;
   }
@@ -90,9 +90,9 @@ contract BlindAuction {
   function prebid(uint _auctionId, uint _value) public {
     // check valid
     Auction storage auction = auctions[_auctionId]; 
-    require(msg.sender != auction.seller, "seller bid");                // check no seller
+    require(msg.sender != auction.seller, "seller bid");                 // check no seller
     require(_auctionId <= numAuctions, "wrong auction id");             // check auction id
-    require(auction.currentPhase == Phase.Prebid, "phase error");       // check phase
+    require(auction.currentPhase == Phase.Prebid, "phase error");        // check phase
     require(_value > auction.minimumPrice, "less than minimum price");  // check minimun price
     
     // push prebid
@@ -100,7 +100,7 @@ contract BlindAuction {
     // increase count
     auction.prebidderCount++;
     // change phase
-    if (block.number >= auction.phaseBlockNumber + 10) {
+    if (block.number >= auction.phaseBlockNumber + 3) {
       auction.phaseBlockNumber = block.number;
       auction.currentPhase = Phase.Bidding;
     }
@@ -133,14 +133,12 @@ contract BlindAuction {
     auction.bidders.push(
       Bidder(payable(msg.sender), _blindedBid)
     );
-    // increase count
-    auction.bidderCount++;
     // change phase
-    if (auction.prebidderCount == auction.bidderCount) {
+    if (auction.prebidderCount == auction.bidders.length) {
       auction.phaseBlockNumber = block.number;
       auction.currentPhase = Phase.Reveal;
     } 
-    if (block.number >= auction.phaseBlockNumber + 10) {
+    if (block.number >= auction.phaseBlockNumber + 3) {
       auction.phaseBlockNumber = block.number;
       auction.currentPhase = Phase.Reveal;
     }
@@ -156,9 +154,9 @@ contract BlindAuction {
   function reveal(uint _auctionId , uint _value) public {
     // check valid
     Auction storage auction = auctions[_auctionId];
-    require(msg.sender != auction.seller, "seller reveal");                             // check no seller
-    require(_auctionId <= numAuctions, "wrong auction id");                             // check auction id
-    require(auction.currentPhase == Phase.Reveal, "phase error");                       // check phase
+    require(msg.sender != auction.seller, "seller reveal");                               // check no seller
+    require(_auctionId <= numAuctions, "wrong auction id");                              // check auction id
+    require(auction.currentPhase == Phase.Reveal, "phase error");                         // check phase
     require(_value == bids[msg.sender][_auctionId], "Not same value as the prebid");    // check bid value
 
     // check bid result
@@ -166,30 +164,21 @@ contract BlindAuction {
       emit NowHighestBidder(_auctionId, msg.sender, _value);
     } else {
       emit BidFail(_auctionId, msg.sender, _value);
-      // withdraw
-      withdraw(_auctionId, msg.sender);
     }
-    // increase count
-    auction.revealCount++;
+    // set checked bidder
+    auction.checkedBidders.push(
+      CheckedBidder(payable(msg.sender), _value)
+    );
     // change phase
-    if (auction.bidderCount == auction.revealCount) {
+    if (auction.bidders.length == auction.checkedBidders.length) {
       auction.phaseBlockNumber = block.number;
       auction.currentPhase = Phase.Done;
     } 
-    if (block.number >= auction.phaseBlockNumber + 10) {
+    if (block.number >= auction.phaseBlockNumber + 3) {
       auction.phaseBlockNumber = block.number;
       auction.currentPhase = Phase.Done;
     }
-    // rest bidder withdraw
-    if (auction.currentPhase == Phase.Done) {
-      if (auction.bidders.length > 0) {
-        for (uint i = 0; i < auction.bidders.length; i++) {
-          if (auction.highestBidder != auction.bidders[i].addr) {
-            withdraw(_auctionId, auction.bidders[i].addr);
-          }
-        }
-      }
-    }
+    
     // event
     emit AuctionReveal(_auctionId, msg.sender, _value);
   }
@@ -212,21 +201,19 @@ contract BlindAuction {
 
   event Withdraw(uint _auctionId, address _bidder, uint _value);
   // 입찰금 반환
-  function withdraw(uint _auctionId, address _bidder) public {
+  function withdraw(uint _auctionId) public {
     // check valid
     Auction storage auction = auctions[_auctionId];
-    require(auction.currentPhase == Phase.Reveal || auction.currentPhase == Phase.Done, "phase error");         // check phase
-    uint amount = bids[_bidder][_auctionId];
-    require(amount > 0, "No return amount");                                                                    // check withdraw amount
-    // bidders pop
-    uint _index = biddersNumber[_bidder][_auctionId];
-    auction.bidders[_index] = auction.bidders[auction.bidders.length - 1];
-    auction.bidders.pop();
+    require(auction.seller != msg.sender, "seller withdraw");           // check seller
+    require(auction.highestBidder != msg.sender, "winner withdraw");    // check winner
+    require(auction.currentPhase == Phase.Done, "phase error");         // check phase
+    uint amount = bids[msg.sender][_auctionId];
+    require(amount > 0, "No return amount");                            // check withdraw amount
     // withdraw bid
-    bids[_bidder][_auctionId] = 0;
-    payable(_bidder).transfer(amount);
+    bids[msg.sender][_auctionId] = 0;
+    payable(msg.sender).transfer(amount);
     // event
-    emit Withdraw(_auctionId, _bidder, amount);
+    emit Withdraw(_auctionId, msg.sender, amount);
   }
 
   event AuctionEnded(uint _auctionId, address _highestBidder, uint _highestBid);
@@ -239,9 +226,8 @@ contract BlindAuction {
     require(auction.currentPhase == Phase.Done);                    // check phase
 
     // seller get highest bid
-    if(address(this).balance >= auction.highestBid) {
+    if (address(this).balance >= auction.highestBid) {
       uint winningBid = auction.highestBid;
-      auction.highestBid = 0;
       auction.seller.transfer(winningBid);
     }
     // auction end

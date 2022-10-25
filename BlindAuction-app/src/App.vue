@@ -10,12 +10,6 @@
         >
           매물
         </div>
-        <button
-          class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
-          @click="generateBlock"
-        >
-          블록 생성
-        </button>
       </div>
 
       <div class="p-3 flex">
@@ -62,6 +56,7 @@
     <!-- Bidder -->
     <h2 class="font-bold text-xl mb-2">매물목록</h2>
     <div
+      v-if="auctionList"
       v-for="(auction, key) in auctionList"
       :key="key"
       class="p-5 border border-black flex flex-col gap-10 mb-5"
@@ -71,19 +66,13 @@
           <div
             class="bg-gray-400 inline-block w-24 text-center border border-black text-white"
           >
-            경매 {{ auction.auctionId }}
+            경매 {{ auction?.auctionId }}
           </div>
-          <span class="ml-3">{{ auction.seller }}</span>
+          <span class="ml-3">판매자: {{ auction?.seller }}</span>
           <div class="float-right">
             <button
-              class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600 mr-2"
-              @click="generateBlock"
-            >
-              블록 생성
-            </button>
-            <button
               class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
-              @click="getMyBid(auction.auctionId)"
+              @click="getMyBid(auction?.auctionId)"
             >
               나의 입찰가
             </button>
@@ -92,19 +81,23 @@
         <div class="p-3 flex">
           <div class="flex flex-col gap-1 w-1/2">
             <div>
-              <p for="product-name">매물이름: {{ auction.title }}</p>
+              <p for="product-name">매물이름: {{ auction?.title }}</p>
             </div>
             <div>
-              <p for="product-description">설명: {{ auction.description }}</p>
+              <p for="product-description">설명: {{ auction?.description }}</p>
             </div>
             <div class="flex">
               <p for="minimum-price">
-                최소입찰금액: {{ auction.minimumPrice }}
+                최소입찰금액: {{ auction?.minimumPrice }}
               </p>
               <span class="ml-2">(ETH)</span>
             </div>
             <div>
-              <p>진행상황: {{ auction.currentPhase }}</p>
+              <span>진행상황: </span>
+              <span v-if="auction?.currentPhase == 0">예비입찰</span>
+              <span v-if="auction?.currentPhase == 1">입찰</span>
+              <span v-if="auction?.currentPhase == 2">공표</span>
+              <span v-if="auction?.currentPhase == 3">경매종료</span>
             </div>
           </div>
         </div>
@@ -122,7 +115,7 @@
               <label for="product-name">입찰 금액: </label>
               <input
                 type="text"
-                placeholder="매물이름을 입력하세요."
+                placeholder="예비입찰금 입력"
                 class="border border-gray-400 focus:border-gray-500 pl-0.5"
                 v-model="prebidPriceList[key]"
               />
@@ -152,7 +145,7 @@
               <label for="product-name">입찰 금액: </label>
               <input
                 type="text"
-                placeholder="매물이름을 입력하세요."
+                placeholder="입찰금 입력"
                 class="border border-gray-400 focus:border-gray-500 pl-0.5"
                 v-model="bidPriceList[key]"
               />
@@ -177,31 +170,72 @@
           >
             공표
           </div>
+        </div>
+        <div class="mb-8 flex">
+          <div class="w-1/2">
+            <label for="reveal" class="ml-2">입찰 금액: </label>
+            <input
+              type="text"
+              class="border border-gray-400 focus:border-gray-500 pl-0.5"
+              placeholder="입찰금 확인"
+              v-model="revealPriceList[key]"
+            />
+            <span class="ml-2">(ETH)</span>
+          </div>
           <button
+            v-if="auction?.currentPhase == 2"
             class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
             @click="pushReveal(auction.auctionId)"
           >
             입찰 확인
           </button>
         </div>
-        <div class="mb-12">
-          <span class="mr-24">입찰자: {{ MyAddress }}</span>
-          <label for="reveal">입찰금액: </label>
-          <input
-            type="text"
-            class="border border-gray-400 focus:border-gray-500 pl-0.5"
-            v-model="revealPriceList[key]"
-          />
+        <!-- Reveal -->
+        <!-- <div>{{ auctionCheckList }}</div> -->
+        <div v-if="auction.checkedBidders" class="pb-5">
+          <div v-for="checkedBidder in auction.checkedBidders" class="ml-2 m-1">
+            <div class="flex">
+              <div class="w-1/2">
+                <span>입찰자: </span>
+                <span>{{ checkedBidder[0] }}</span>
+              </div>
+              <div>
+                <span>입찰금: </span>
+                <span
+                  >{{
+                    web3?.utils?.fromWei(checkedBidder[1], "ether")
+                  }}
+                  (ETH)</span
+                >
+              </div>
+            </div>
+          </div>
         </div>
-        <div v-if="isAuctionDone" class="flex justify-between">
-          <div>낙찰자: {{ auction.highestBidder }}</div>
-          <button
-            v-if="auction.seller == MyAddress"
-            class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
-            @click="pushAuctionEnd(auction.auctionId)"
-          >
-            정산
-          </button>
+        <!-- Done -->
+        <div
+          v-if="auction.currentPhase == 3"
+          class="pt-5 ml-2 border-t border-dashed border-sky-500"
+        >
+          <div class="flex">
+            <div class="w-1/2">낙찰자: {{ auction?.highestBidder }}</div>
+            <div>낙찰금: {{ auction?.highestBid }} (ETH)</div>
+          </div>
+
+          <div class="flex justify-between mt-3">
+            <button
+              class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
+              @click="pushWithdraw(auction?.auctionId)"
+            >
+              반환
+            </button>
+            <button
+              v-if="auction?.seller == MyAddress"
+              class="bg-sky-500 w-32 border border-black text-white rounded hover:bg-sky-600"
+              @click="pushAuctionEnd(auction?.auctionId)"
+            >
+              정산
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -214,16 +248,16 @@ import BlindAuction from "./network/BlindAuction";
 import { onBeforeMount, ref } from "vue";
 
 const title = ref("");
-const minimumBid = ref("0");
+const minimumBid = ref("");
 const description = ref("");
 
 const auctionList = ref([]);
+const auctionCheckList = ref([]);
 
 const prebidPriceList = ref([]);
 const bidPriceList = ref([]);
 const revealPriceList = ref([]);
 
-const isAuctionDone = ref(false);
 const MyAddress = ref("");
 
 setInterval(() => {
@@ -256,6 +290,7 @@ const getAuctionData = (index) => {
         currentPhase: auction.currentPhase,
         phaseBlockNumber: auction.phaseBlockNumber,
       };
+      // push bidders
       BlindAuction.methods
         .getAuctionBidders(index)
         .call()
@@ -264,16 +299,23 @@ const getAuctionData = (index) => {
           auctionData["bidders"] = bidders;
           console.log(auctionData);
         });
+      // push checked bidders
+      BlindAuction.methods
+        .getAuctionCheckedBidders(index)
+        .call()
+        .then((checkedBidders) => {
+          console.log(checkedBidders);
+          auctionData["checkedBidders"] = checkedBidders;
+          auctionCheckList.value.push(checkedBidders);
+          console.log(auctionData);
+        });
       // push auction data
       auctionList.value[index] = auctionData;
-      // phase done check
-      if (auction.currentPhase == 3) {
-        isAuctionDone.value = true;
-      }
+      console.log(auctionData);
     });
 };
 
-onBeforeMount(() => {
+onBeforeMount(async () => {
   const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
   const toChecksumAddress = web3.utils.toChecksumAddress(fromAddress);
   MyAddress.value = toChecksumAddress;
@@ -287,13 +329,12 @@ onBeforeMount(() => {
       if (auctionLength > 0) {
         for (let i = 0; i < auctionLength; i++) {
           getAuctionData(i);
-          prebidPriceList.value.push("0");
-          bidPriceList.value.push("0");
-          revealPriceList.value.push("0");
+          prebidPriceList.value.push("");
+          bidPriceList.value.push("");
+          revealPriceList.value.push("");
         }
       }
-    })
-    .catch((err) => console.log(err));
+    });
 });
 
 const createAuction = () => {
@@ -304,51 +345,60 @@ const createAuction = () => {
       const _minimumBid = web3.utils.toWei(minimumBid.value, "ether");
       // create acution
       console.log(accounts[0]);
-      return BlindAuction.methods
-        .createAuction(accounts[0], title.value, description.value, _minimumBid)
-        .send({ from: accounts[0] });
-    })
-    .then((auctionId) => {
-      // initialize create auction form
-      title.value = "";
-      description.value = "";
-      minimumBid.value = 0;
-
-      prebidPriceList.value.push("0");
-      bidPriceList.value.push("0");
-      revealPriceList.value.push("0");
-
-      // return auction
-      return BlindAuction.methods.auctions(auctionId).call();
-    })
-    .then((auction) => {
-      console.log(auction);
-      const toEtherMinimum = web3.utils.fromWei(auction.minimumPrice, "ether");
-      const toEtherHightestBid = web3.utils.fromWei(
-        auction.highestBid,
-        "ether"
-      );
-      const auctionData = {
-        auctionId: auction.auctionId,
-        seller: auction.seller,
-        title: auction.title,
-        description: auction.description,
-        minimumPrice: toEtherMinimum,
-        prebidderCount: auction.prebidderCount,
-        highestBidder: auction.highestBidder,
-        highestBid: toEtherHightestBid,
-        currentPhase: auction.currentPhase,
-        phaseBlockNumber: auction.phaseBlockNumber,
-      };
       BlindAuction.methods
-        .getAuctionBidders(auction.auctionId)
-        .call()
-        .then((bidders) => {
-          console.log(bidders);
-          auctionData["bidders"] = bidders;
-          console.log(auctionData);
+        .createAuction(accounts[0], title.value, description.value, _minimumBid)
+        .send({ from: accounts[0] })
+        .then(() => {
+          // initialize create auction form
+          title.value = "";
+          description.value = "";
+          minimumBid.value = 0;
+
+          prebidPriceList.value.push("");
+          bidPriceList.value.push("");
+          revealPriceList.value.push("");
+
+          BlindAuction.methods
+            .numAuctions()
+            .call()
+            .then((num) => {
+              const index = num - 1;
+
+              return BlindAuction.methods.auctions(index).call();
+            })
+            .then((auction) => {
+              console.log(auction);
+              const toEtherMinimum = web3.utils.fromWei(
+                auction.minimumPrice,
+                "ether"
+              );
+              const toEtherHightestBid = web3.utils.fromWei(
+                auction.highestBid,
+                "ether"
+              );
+              const auctionData = {
+                auctionId: auction.auctionId,
+                seller: auction.seller,
+                title: auction.title,
+                description: auction.description,
+                minimumPrice: toEtherMinimum,
+                prebidderCount: auction.prebidderCount,
+                highestBidder: auction.highestBidder,
+                highestBid: toEtherHightestBid,
+                currentPhase: auction.currentPhase,
+                phaseBlockNumber: auction.phaseBlockNumber,
+              };
+              BlindAuction.methods
+                .getAuctionBidders(auction.auctionId)
+                .call()
+                .then((bidders) => {
+                  console.log(bidders);
+                  auctionData["bidders"] = bidders;
+                  console.log(auctionData);
+                });
+              auctionList.value.push(auctionData);
+            });
         });
-      auctionList.value.push(auctionData);
     })
     .catch((err) => {
       console.log(err);
@@ -384,7 +434,7 @@ const getMyBid = (auctionId) => {
     .getMyBid(auctionId)
     .call({ from: fromAddress })
     .then((bid) =>
-      console.log("My bid:", web3.utils.fromWei(bid, "ether") + " ether")
+      alert("My bid: " + web3.utils.fromWei(bid, "ether") + " ether")
     )
     .catch((err) => console.log(err));
 };
@@ -427,13 +477,25 @@ const pushReveal = (auctionId) => {
   BlindAuction.methods
     .reveal(auctionId, bidPriceWei)
     .send({ from: fromAddress, gasPrice: 20000000000, gas: "6721975" })
-    .then(() => console.log("reveal success"))
+    .then(() => {
+      console.log("reveal success");
+    })
     .catch((err) => console.log(err));
   getAuctionData(auctionId);
 };
 
-const pushAuctionEnd = (auctionId) => {
+const pushWithdraw = (auctionId) => {
   // get bidder address
+  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
+  BlindAuction.methods
+    .withdraw(auctionId)
+    .send({ from: fromAddress, gasPrice: 20000000000, gas: "6721975" })
+    .then(() => alert("withdraw success"))
+    .catch((err) => console.log(err));
+};
+
+const pushAuctionEnd = (auctionId) => {
+  // get seller address
   const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
   const toChecksumAddress = web3.utils.toChecksumAddress(fromAddress);
   BlindAuction.methods
@@ -448,16 +510,6 @@ const pushAuctionEnd = (auctionId) => {
       .send({ from: toChecksumAddress, gasPrice: 20000000000, gas: "6721975" })
       .then(() => console.log("auction end"))
       .catch((err) => console.log(err));
-    getAuctionData(auctionId);
   }
-};
-
-const generateBlock = () => {
-  const fromAddress = web3.eth.accounts.givenProvider.selectedAddress;
-  BlindAuction.methods
-    .generateBlock()
-    .send({ from: fromAddress, gasPrice: 20000000000, gas: "6721975" })
-    .then(() => console.log("block generate"))
-    .catch((err) => console.log(err));
 };
 </script>
