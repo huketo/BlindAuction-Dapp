@@ -3,7 +3,6 @@ const truffleAssert = require("truffle-assertions");
 const assert = require("chai").assert;
 
 contract("BlindAuction", (accounts) => {
-  const success = "0x01";
   let blindAuction;
   // error 설정
   const onlySellerError = "Only seller can perform this action";
