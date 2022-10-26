@@ -193,7 +193,10 @@
         <!-- Reveal -->
         <!-- <div>{{ auctionCheckList }}</div> -->
         <div v-if="auction.checkedBidders" class="pb-5">
-          <div v-for="checkedBidder in auction.checkedBidders" class="ml-2 m-1">
+          <div
+            v-for="checkedBidder in auction?.checkedBidders"
+            class="ml-2 m-1"
+          >
             <div class="flex">
               <div class="w-1/2">
                 <span>입찰자: </span>
