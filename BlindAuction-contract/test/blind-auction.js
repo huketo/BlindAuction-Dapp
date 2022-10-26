@@ -156,7 +156,7 @@ contract("BlindAuction", (accounts) => {
         }),
         truffleAssert.ErrorType.REVERT,
         null,
-        "not same value bid"
+        badBidError
       );
     });
     it("Failure on bid different phase.", async function () {
@@ -246,7 +246,7 @@ contract("BlindAuction", (accounts) => {
         }),
         truffleAssert.ErrorType.REVERT,
         null,
-        "not same value reveal"
+        badRevealError
       );
     });
 
@@ -423,7 +423,7 @@ contract("BlindAuction", (accounts) => {
         }),
         truffleAssert.ErrorType.REVERT,
         null,
-        "seller withdraw"
+        onlyBidderError
       );
     });
     it("Failure on done bidder take highest bid", async function () {
@@ -476,7 +476,7 @@ contract("BlindAuction", (accounts) => {
         }),
         truffleAssert.ErrorType.REVERT,
         null,
-        "bidder can not take highest bid"
+        onlySellerError
       );
     });
   });
