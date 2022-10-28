@@ -412,7 +412,7 @@ const pushPrebid = async (auctionId) => {
   console.log(prebidPriceList.value[auctionId]);
   // ether -> wei
   const prebidPriceWei = web3.utils.toWei(
-    prebidPriceList.value[auctionId],
+    String(prebidPriceList.value[auctionId]),
     "ether"
   );
   // get bider address
@@ -422,11 +422,16 @@ const pushPrebid = async (auctionId) => {
   await BlindAuction.methods
     .prebid(auctionId, prebidPriceWei)
     .send({ from: fromAddress, gasPrice: 20000000000, gas: "6721975" })
+    .on("error", (error, receipt) => {
+      console.log(error);
+      console.log(receipt);
+    })
     .then(() => {
       console.log("prebid success");
     })
     .catch((err) => {
       console.log(err);
+      console.log(extractErrorCode(err.message));
     });
   getAuctionData(auctionId);
 };
@@ -514,5 +519,21 @@ const pushAuctionEnd = (auctionId) => {
       .then(() => console.log("auction end"))
       .catch((err) => console.log(err));
   }
+};
+
+const extractErrorCode = (str) => {
+  const delimiter = "___"; //Replace it with the delimiter you used in the Solidity Contract.
+  const firstOccurence = str.indexOf(delimiter);
+  if (firstOccurence == -1) {
+    return "An error occured";
+  }
+
+  const secondOccurence = str.indexOf(delimiter, firstOccurence + 1);
+  if (secondOccurence == -1) {
+    return "An error occured";
+  }
+
+  //Okay so far
+  return str.substring(firstOccurence + delimiter.length, secondOccurence);
 };
 </script>

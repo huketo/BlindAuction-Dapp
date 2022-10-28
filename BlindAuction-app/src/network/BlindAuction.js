@@ -1,6 +1,6 @@
 import web3 from "./web3";
 
-const address = "0x26182DC318e480851306bFbF49BBb936618Bd5E1";
+const address = "0x64799306Ba05103030E7B0024B1bC442D837b870";
 const ABI = [
   {
     anonymous: false,
@@ -224,6 +224,11 @@ const ABI = [
         type: "uint256",
       },
       {
+        internalType: "uint256",
+        name: "revealedCount",
+        type: "uint256",
+      },
+      {
         internalType: "address",
         name: "highestBidder",
         type: "address",
@@ -289,40 +294,13 @@ const ABI = [
             name: "blindedBid",
             type: "bytes32",
           },
+          {
+            internalType: "bool",
+            name: "revealed",
+            type: "bool",
+          },
         ],
         internalType: "struct BlindAuction.Bidder[]",
-        name: "",
-        type: "tuple[]",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-    constant: true,
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "_auctionId",
-        type: "uint256",
-      },
-    ],
-    name: "getAuctionCheckedBidders",
-    outputs: [
-      {
-        components: [
-          {
-            internalType: "address payable",
-            name: "addr",
-            type: "address",
-          },
-          {
-            internalType: "uint256",
-            name: "bid",
-            type: "uint256",
-          },
-        ],
-        internalType: "struct BlindAuction.CheckedBidder[]",
         name: "",
         type: "tuple[]",
       },
